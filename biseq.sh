@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#head -1000000 ../412G_NoIndex_L002_R1_001.fastq > test1.fastq 
-#head -1000000 ../412G_NoIndex_L002_R1_002.fastq > test2.fastq 
+head -1000000 ../412G_NoIndex_L002_R1_001.fastq > test1.fastq 
+head -1000000 ../412G_NoIndex_L002_R1_002.fastq > test2.fastq 
 usage="""usage: biseq --prefix=<sample_name> --indir=<working directory> --S3=<yes/no
 	     sample_name: base sample name
 	     indir: working directory containing fastq(.gz) files
@@ -16,8 +16,8 @@ PATHTOBISMARK='/Volumes/mac/Luis/programs/amp-errbs/scripts/bismark_aa'
 PATHTOFAR='/Volumes/mac/Luis/programs/flexbar_v2.33/'
 SAMTOOLS='/Volumes/mac/Luis/programs/samtools-0.1.19'
 PATHTOBOWTIE='/Volumes/mac/Luis/programs/bowtie-1.0.0/'
-PATHTOBAM2WIG='/Volumes/mac/Luis/programs/'
-PATHTOBISMARKORIGINAL='Volumes/mac/Luis/programs/bismark_v0.7.9/'
+PATHTOBAM2WIG='/Volumes/mac/Luis/programs'   #must have wigToBigWig in the PATH
+PATHTOBISMARKORIGINAL='/Volumes/mac/Luis/programs/bismark_v0.7.9'
 ILLUMINA=1.82
 S3='no'   #AWS S3 storage
 
@@ -68,14 +68,6 @@ fi
 
 cd $INDIR
 
-if [ ! -e "${INDIR}/${PREFIX}"  ] ; then
-    echo -e "ERROR: There is no fastq file with proper name in '$INDIR' directory"
-    echo -e "The script expects existence of ${PREFIX}\n\n"
-    
-    echo -e $usage
-    exit 1
-fi
-
 
 #0) unzip fastq files
 for i in *.gz; do gunzip $i; done
@@ -90,7 +82,7 @@ rm *.fastq
 #2) trim adapters with flexbar 
 echo  "trimming adapters with FAR..."
 for i in *.fastq_fastqPF; do $PATHTOFAR/flexbar -r $i -t $i.trimmed -as ${ADAPTER} --min-readlength 21 -at 2 --adapter-trim-end RIGHT_TAIL -n 4 -u 2 -f fastq  2> $i_trimming.log; done
-rm *._fastqPF
+rm *.fastq_fastqPF
 
 
 #3) concatenate multiple files into one large file
@@ -112,29 +104,37 @@ echo  "sorting the alignment file..."
 sort -t$'\t' -T . -k3,3 -k4,4n -k2,2 ${PREFIX}_fastqPF.txt.trimmed.fastq_bismark.txt > ${PREFIX}_AlignmentSortedForCall.txt
 
 
+
 # 6 )call for methylation
 echo  "call for methylations..."
 perl $FOLDERTOSCRIPTS/methylationCall_fromBismark.v2.pl --prefix=${PREFIX} --illumina=${ILLUMINA}  ${PREFIX}_AlignmentSortedForCall.txt 
 
 
+
 #7)  run original bismark because amp-eRRBS' bismark doesnt produce header lines, which messes up conversion to bam
 $PATHTOBISMARKORIGINAL/bismark -l 50 -chunkmbs 512 -q --phred33-quals $GENOMEPATH2 ${PREFIX}_fastqPF.txt.trimmed.fastq
-
 #$PATHTOBISMARKORIGINAL/bismark_methylation_extractor -s --comprehensive ${PREFIX}_fastqPF.txt.trimmed.fastq.sam --bedGraph --counts > a.bed
+
+
 
 #8) generate bam and bai files
 $SAMTOOLS/samtools view -Sb  ${PREFIX}_fastqPF.txt.trimmed.fastq_bismark.sam  >  ${PREFIX}.bam
 $SAMTOOLS/samtools sort ${PREFIX}.bam ${PREFIX}.bam.sorted
 $SAMTOOLS/samtools index ${PREFIX}.bam.sorted.bam
-$PATHTOBAM2WIG/bam2wig.py ${PREFIX}.bam.sorted.bam --outfile={PREFIX}.wig
+$PATHTOBAM2WIG/bam2wig.py ${PREFIX}.bam.sorted.bam
 
+
+
+
+#9) cleanup
+rm ${PREFIX}_fastqPF.txt.trimmed.fastq_bismark.txt
 rm ${PREFIX}.bam
 rm *.sam
+rm ${PREFIX}_fastqPF.txt.trimmed.fastq
 
 
 
-
-#email me when job is complete AND / OR upload report to amazon S3
+#10) email me when job is complete AND / OR upload report to amazon S3
 
 if [ $S3 == "yes"  ]
 then
@@ -142,10 +142,7 @@ s3cmd mb S3://$PREFIX
 s3cmd setacl --acl-public s3://$PREFIX
 s3cmd put --acl-public FILE $INDIR/${PREFIX}*.* S3://$PREFIX
 
-echo '{PREFIX} - complete' | mail -s '${PREFIX} Download: http://s3.amazonaws.com/${{PREFIX' lfcunha@gmail.com
+echo ${PREFIX} .'- complete. Download: http://s3.amazonaws.com/'.${PREFIX} | mail -s ${PREFIX}  lfcunha@gmail.com
 else
-echo '{PREFIX} - complete' | mail -s '${PREFIX}' lfcunha@gmail.com
+echo ${PREFIX} .' - complete' | mail -s ${PREFIX} lfcunha@gmail.com
 fi
-
-
-
