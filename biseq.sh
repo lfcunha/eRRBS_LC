@@ -1,7 +1,5 @@
 #!/bin/bash
 
-head -1000000 ../412G_NoIndex_L002_R1_001.fastq > test1.fastq 
-head -1000000 ../412G_NoIndex_L002_R1_002.fastq > test2.fastq 
 usage="""usage: biseq --prefix=<sample_name> --indir=<working directory> --S3=<yes/no
 	     sample_name: base sample name
 	     indir: working directory containing fastq(.gz) files
