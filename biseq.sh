@@ -1,8 +1,8 @@
 #!/bin/bash
 
-usage="""usage: biseq --prefix=<sample_name> --indir=<working directory> --S3=<yes/no
-	     sample_name: base sample name
-	     indir: working directory containing fastq(.gz) files
+usage="""usage: biseq --prefix=<sample_name> --indir=<working directory> --S3=<yes/no>\n
+	     sample_name: base sample name\n
+	     indir: working directory containing fastq(.gz) files\n
 	     S3: optional upload to amazon's S3 storage. s3cmd (http://s3tools.org/s3cmd) must be found in the PATH. 	
 		"""
 
