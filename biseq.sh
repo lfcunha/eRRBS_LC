@@ -9,7 +9,7 @@ GENOMEPATH='/Volumes/WINDOWS/LuisFilipe/alicia/hg19/g1k' #indexed with amp-eRRBS
 GENOMEPATH2='/Volumes/WINDOWS/LuisFilipe/alicia/hg19/g1k/bismark'  #indexed with original bismark's bismark-genome-preparation and bowtie1
 FOLDERTOSCRIPTS='/Volumes/mac/Luis/programs/amp-errbs/scripts'
 PATHTOBISMARK='/Volumes/mac/Luis/programs/amp-errbs/scripts/bismark_aa'
-#PATHTOFAR='/Volumes/mac/Luis/programs/flexbar_v2.33/far' #added to $PATH instead
+PATHTOFAR='/Volumes/mac/Luis/programs/flexbar_v2.33/' #added to $PATH instead
 SAMTOOLS='/Volumes/mac/Luis/programs/samtools-0.1.19'
 PATHTOBOWTIE='/Volumes/mac/Luis/programs/bowtie-1.0.0/'
 PATHTOBAM2WIG='/Volumes/mac/Luis/programs/'
@@ -59,6 +59,56 @@ fi
 cd $INDIR
 
 
+
+if [ ! -e "${INDIR}/${PREFIX}"  ] ; then
+    echo -e "ERROR: There is no fastq file with proper name in '$INDIR' directory"
+    echo -e "The script expects existence of ${PREFIX}\n\n"
+    
+    echo -e $usage
+    exit 1
+fi
+
+
+
+for i in *.gz; do gunzip $i; done
+
+
+#1) pass filter to remove reads that failed filter
+
+echo "running Illumina pass filter..."
+
+for i in *.fastq; do fastq_illumina_filter -N -o ${i}_fastqPF $i; done
+
+rm *.fastq
+
+#2) trim adapters with flexbar 
+echo  "trimming adapters with FAR..."
+for i in *.fastq_fastqPF; do $PATHTOFAR/flexbar -r $i -t $i.trimmed -as ${ADAPTER} --min-readlength 21 -at 2 --adapter-trim-end RIGHT_TAIL -n 4 -u 2 -f fastq  2> $i_trimming.log; done
+
+rm *._fastqPF
+
+#3) concatenate multiple files into one large file
+echo "concatenating files...\n"
+FILES=$INDIR/*.fastq_fastqPF.trimmed.fastq
+cat $FILES > ${PREFIX}_fastqPF.txt.trimmed.fastq
+
+
+#4) start bismark_aa   (amp-eRRBS' modified bismark)
+echo  "bismark alignment started..."
+
+#using casava 1.82, therefore using phred33-quals
+perl $PATHTOBISMARK --path_to_bowtie $PATHTOBOWTIE  -l 50 -chunkmbs 512 -q --phred33-quals --directional --extendedse  $GENOMEPATH ${PREFIX}_fastqPF.txt.trimmed.fastq
+
+
+# 5) sort the file
+echo  "sorting the alignment file..."
+
+sort -t$'\t' -T . -k3,3 -k4,4n -k2,2 ${PREFIX}_fastqPF.txt.trimmed.fastq_bismark.txt > ${PREFIX}_AlignmentSortedForCall.txt
+
+# 6 )call for methylation
+echo  "call for methylations..."
+
+perl $FOLDERTOSCRIPTS/methylationCall_fromBismark.v2.pl --prefix=${PREFIX} --illumina=${ILLUMINA}  ${PREFIX}_AlignmentSortedForCall.txt 
 
 #7)  run original bismark because amp-eRRBS' bismark doesnt produce header lines, which messes up conversion to bam
 
