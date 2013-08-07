@@ -133,7 +133,7 @@ rm ${PREFIX}_AlignmentSortedForCall.txt
 
 
 
-#10) email me when job is complete AND / OR upload report to amazon S3
+#10) upload report to amazon S3 aAND / OR send email once job is finished
 
 if [ $S3 == "yes"  ]
 then
