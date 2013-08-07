@@ -129,6 +129,7 @@ rm ${PREFIX}_fastqPF.txt.trimmed.fastq_bismark.txt
 rm ${PREFIX}.bam
 rm *.sam
 rm ${PREFIX}_fastqPF.txt.trimmed.fastq
+rm ${PREFIX}_AlignmentSortedForCall.txt
 
 
 
