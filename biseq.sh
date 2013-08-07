@@ -136,9 +136,11 @@ rm ${PREFIX}_fastqPF.txt.trimmed.fastq
 
 if [ $S3 == "yes"  ]
 then
+gzip *
+tar -cf ${PREFIX}.tar *.gz
 s3cmd mb S3://$PREFIX
 s3cmd setacl --acl-public s3://$PREFIX
-s3cmd put --acl-public FILE $INDIR/${PREFIX}*.* S3://$PREFIX
+s3cmd put --acl-public FILE $INDIR/${PREFIX}*.tar S3://$PREFIX
 
 echo ${PREFIX} .'- complete. Download: http://s3.amazonaws.com/'.${PREFIX} | mail -s ${PREFIX}  lfcunha@gmail.com
 else
